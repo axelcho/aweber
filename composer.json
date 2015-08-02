@@ -1,0 +1,12 @@
+{
+  "name": "seongcho/aweber",
+  "description": "AWeber API namespaced",
+  "minimum-stability": "stable",
+  "license": "GPL-2.0",
+  "authors": [
+    {
+      "name": "Seong Cho",
+      "email": "axelcho@gmail.com"
+    }
+  ]
+}
