@@ -8,5 +8,8 @@
       "name": "Seong Cho",
       "email": "axelcho@gmail.com"
     }
-  ]
+  ],
+  "autoload": {
+    "psr-0": { "AWeber": "AWeber/" }
+  }
 }
