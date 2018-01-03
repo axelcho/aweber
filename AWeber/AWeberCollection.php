@@ -1,12 +1,23 @@
 <?php
+
 namespace AWeber;
 
-class AWeberCollection extends AWeberResponse implements ArrayAccess, Iterator, Countable {
+/**
+ * Class AWeberCollection
+ *
+ * @property $url
+ * @property $total_size
+ * @package AWeber
+ * @version 0.0.2
+ */
+class AWeberCollection extends AWeberResponse implements \ArrayAccess, \Iterator, \Countable
+{
 
     protected $pageSize = 100;
     protected $pageStart = 0;
 
-    protected function _updatePageSize() {
+    protected function _updatePageSize()
+    {
 
         # grab the url, or prev and next url and pull ws.size from it
         $url = $this->url;
@@ -37,7 +48,8 @@ class AWeberCollection extends AWeberResponse implements ArrayAccess, Iterator, 
         $this->pageSize = count($this->data['entries']);
     }
 
-    public function __construct($response, $url, $adapter) {
+    public function __construct($response, $url, $adapter)
+    {
         parent::__construct($response, $url, $adapter);
         $this->_updatePageSize();
     }
@@ -55,11 +67,13 @@ class AWeberCollection extends AWeberResponse implements ArrayAccess, Iterator, 
      * getById
      *
      * Gets an entry object of this collection type with the given id
-     * @param mixed $id     ID of the entry you are requesting
+     *
+     * @param mixed $id ID of the entry you are requesting
      * @access public
      * @return AWeberEntry
      */
-    public function getById($id) {
+    public function getById($id)
+    {
         $data = $this->adapter->request('GET', "{$this->url}/{$id}");
         $url = "{$this->url}/{$id}";
         return new AWeberEntry($data, $url, $this->adapter);
@@ -70,17 +84,18 @@ class AWeberCollection extends AWeberResponse implements ArrayAccess, Iterator, 
      * Gets an entry's parent entry
      * Returns NULL if no parent entry
      */
-    public function getParentEntry(){
+    public function getParentEntry()
+    {
         $url_parts = explode('/', $this->url);
         $size = count($url_parts);
 
         # Remove collection id and slash from end of url
-        $url = substr($this->url, 0, -strlen($url_parts[$size-1])-1);
+        $url = substr($this->url, 0, -strlen($url_parts[$size - 1]) - 1);
 
         try {
             $data = $this->adapter->request('GET', $url);
             return new AWeberEntry($data, $url, $this->adapter);
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             return NULL;
         }
     }
@@ -88,13 +103,14 @@ class AWeberCollection extends AWeberResponse implements ArrayAccess, Iterator, 
     /**
      * _type
      *
-     * Interpret what type of resources are held in this collection by 
+     * Interpret what type of resources are held in this collection by
      * analyzing the URL
      *
      * @access protected
      * @return string
      */
-    protected function _type() {
+    protected function _type()
+    {
         $urlParts = explode('/', $this->url);
         $type = array_pop($urlParts);
         return $type;
@@ -115,7 +131,8 @@ class AWeberCollection extends AWeberResponse implements ArrayAccess, Iterator, 
      * @param params mixed  associtative array of key/value pairs.
      * @return AWeberEntry(Resource) The new resource created
      */
-    public function create($kv_pairs) {
+    public function create($kv_pairs)
+    {
         # Create Resource
         $params = array_merge(array('ws.op' => 'create'), $kv_pairs);
         $data = $this->adapter->request('POST', $this->url, $params, array('return' => 'headers'));
@@ -133,15 +150,16 @@ class AWeberCollection extends AWeberResponse implements ArrayAccess, Iterator, 
      * of that collection.  Not all collections support the 'find' operation.
      * refer to https://labs.aweber.com/docs/reference/1.0 for more information.
      *
-     * @param mixed $search_data   Associative array of key/value pairs used as search filters
+     * @param mixed $search_data Associative array of key/value pairs used as search filters
      *                             * refer to https://labs.aweber.com/docs/reference/1.0 for a
      *                               complete list of valid search filters.
      *                             * filtering on attributes that require additional permissions to
      *                               display requires an app authorized with those additional permissions.
      * @access public
-     * @return AWeberCollection 
+     * @return AWeberCollection
      */
-    public function find($search_data) {
+    public function find($search_data)
+    {
         # invoke find operation
         $params = array_merge($search_data, array('ws.op' => 'find'));
         $data = $this->adapter->request('GET', $this->url, $params);
@@ -162,16 +180,25 @@ class AWeberCollection extends AWeberResponse implements ArrayAccess, Iterator, 
      * http://php.net/manual/en/class.arrayaccess.php
      */
 
-    public function offsetSet($offset, $value)  {}
-    public function offsetUnset($offset)        {}
-    public function offsetExists($offset) {
+    public function offsetSet($offset, $value)
+    {
+    }
 
-        if ($offset >=0 && $offset < $this->total_size) {
+    public function offsetUnset($offset)
+    {
+    }
+
+    public function offsetExists($offset)
+    {
+
+        if ($offset >= 0 && $offset < $this->total_size) {
             return true;
         }
         return false;
     }
-    protected function _fetchCollectionData($offset) {
+
+    protected function _fetchCollectionData($offset)
+    {
 
         # we dont have a next page, we're done
         if (!array_key_exists('next_collection_link', $this->data)) {
@@ -189,6 +216,7 @@ class AWeberCollection extends AWeberResponse implements ArrayAccess, Iterator, 
         }
 
         # calculate new args
+        /** @var array $params */
         $limit = $params['ws.size'];
         $pagination_offset = intval($offset / $limit) * $limit;
         $params['ws.start'] = $pagination_offset;
@@ -212,7 +240,8 @@ class AWeberCollection extends AWeberResponse implements ArrayAccess, Iterator, 
         }
     }
 
-    public function offsetGet($offset) {
+    public function offsetGet($offset)
+    {
 
         if (!$this->offsetExists($offset)) {
             return null;
@@ -238,23 +267,28 @@ class AWeberCollection extends AWeberResponse implements ArrayAccess, Iterator, 
      */
     protected $_iterationKey = 0;
 
-    public function current() {
+    public function current()
+    {
         return $this->offsetGet($this->_iterationKey);
     }
 
-    public function key() {
+    public function key()
+    {
         return $this->_iterationKey;
     }
 
-    public function next() {
+    public function next()
+    {
         $this->_iterationKey++;
     }
 
-    public function rewind() {
+    public function rewind()
+    {
         $this->_iterationKey = 0;
     }
 
-    public function valid() {
+    public function valid()
+    {
         return $this->offsetExists($this->key());
     }
 
@@ -264,7 +298,8 @@ class AWeberCollection extends AWeberResponse implements ArrayAccess, Iterator, 
      * http://www.php.net/manual/en/class.countable.php
      */
 
-    public function count() {
+    public function count()
+    {
         return $this->total_size;
     }
 }

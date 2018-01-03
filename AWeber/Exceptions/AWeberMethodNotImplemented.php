@@ -1,4 +1,5 @@
 <?php
+
 namespace AWeber\Exceptions;
 
 
@@ -15,9 +16,11 @@ namespace AWeber\Exceptions;
  * @package
  * @version $id$
  */
-class AWeberMethodNotImplemented extends AWeberException {
+class AWeberMethodNotImplemented extends AWeberException
+{
 
-    public function __construct($object) {
+    public function __construct($object)
+    {
         $this->object = $object;
         parent::__construct("This method is not implemented by the current resource.");
 

@@ -1,6 +1,11 @@
 <?php
+
 namespace AWeber;
-use AWeber\Exceptions;
+
+use AWeber\Exceptions\AWeberAPIException;
+use AWeber\Exceptions\AWeberException;
+use AWeber\Exceptions\AWeberOAuthDataMissing;
+use AWeber\Exceptions\AWeberOAuthException;
 
 /**
  * OAuthApplication
@@ -19,10 +24,13 @@ use AWeber\Exceptions;
  * of the logic in this class to meet the needs of the service provider it
  * is designed to interface with.
  *
+ * @property AWeberServiceProvider $app
+ * @property string $error
  * @package
  * @version $id$
  */
-class OAuthApplication implements AWeberOAuthAdapter {
+class OAuthApplication implements AWeberOAuthAdapter
+{
     public $debug = false;
 
     public $userAgent = 'AWeber OAuth Consumer Application 1.0 - https://labs.aweber.com/';
@@ -32,7 +40,7 @@ class OAuthApplication implements AWeberOAuthAdapter {
     public $requiresTokenSecret = true;
 
     public $signatureMethod = 'HMAC-SHA1';
-    public $version         = '1.0';
+    public $version = '1.0';
 
     public $curl = false;
 
@@ -50,13 +58,16 @@ class OAuthApplication implements AWeberOAuthAdapter {
      * __construct
      *
      * Create a new OAuthApplication, based on an OAuthServiceProvider
+     *
      * @access public
-     * @return void
+     * @param bool $parentApp
+     * @throws \Exception
      */
-    public function __construct($parentApp = false) {
+    public function __construct($parentApp = false)
+    {
         if ($parentApp) {
-            if (!is_a($parentApp, 'OAuthServiceProvider')) {
-                throw new Exception('Parent App must be a valid OAuthServiceProvider!');
+            if (!is_a($parentApp, 'Aweber\OAuthServiceProvider')) {
+                throw new \Exception('Parent App must be a valid OAuthServiceProvider!');
             }
             $this->app = $parentApp;
         }
@@ -68,14 +79,17 @@ class OAuthApplication implements AWeberOAuthAdapter {
      * request
      *
      * Implemented for a standard OAuth adapter interface
+     *
      * @param mixed $method
      * @param mixed $uri
      * @param array $data
      * @param array $options
+     * @throws AWeberException
+     * @return array|string
      * @access public
-     * @return string
      */
-    public function request($method, $uri, $data = array(), $options = array()) {
+    public function request($method, $uri, $data = array(), $options = array())
+    {
         $uri = $this->app->removeBaseUri($uri);
         $url = $this->app->getBaseUri() . $uri;
 
@@ -104,7 +118,7 @@ class OAuthApplication implements AWeberOAuthAdapter {
         $data = json_decode($response->body, true);
 
         if (empty($options['allow_empty']) && !isset($data)) {
-            throw new AWeberResponseError($uri);
+            throw new AWeberException($uri);
         }
         return $data;
     }
@@ -113,16 +127,19 @@ class OAuthApplication implements AWeberOAuthAdapter {
      * getRequestToken
      *
      * Gets a new request token / secret for this user.
+     *
      * @access public
+     * @param bool $callbackUrl
      * @return string
      */
-    public function getRequestToken($callbackUrl=false) {
-        $data = ($callbackUrl)? array('oauth_callback' => $callbackUrl) : array();
+    public function getRequestToken($callbackUrl = false)
+    {
+        $data = ($callbackUrl) ? array('oauth_callback' => $callbackUrl) : array();
         $resp = $this->makeRequest('POST', $this->app->getRequestTokenUrl(), $data);
         $data = $this->parseResponse($resp);
         $this->requiredFromResponse($data, array('oauth_token', 'oauth_token_secret'));
         $this->user->requestToken = $data['oauth_token'];
-        $this->user->tokenSecret  = $data['oauth_token_secret'];
+        $this->user->tokenSecret = $data['oauth_token_secret'];
         return $data['oauth_token'];
     }
 
@@ -133,9 +150,11 @@ class OAuthApplication implements AWeberOAuthAdapter {
      * token and token secret.
      *
      * @access public
-     * @return string
+     * @throws AWeberOAuthDataMissing
+     * @return array
      */
-    public function getAccessToken() {
+    public function getAccessToken()
+    {
         $resp = $this->makeRequest('POST', $this->app->getAccessTokenUrl(),
             array('oauth_verifier' => $this->user->verifier)
         );
@@ -157,12 +176,13 @@ class OAuthApplication implements AWeberOAuthAdapter {
      * Checks if response is an error.  If it is, raise an appropriately
      * configured exception.
      *
-     * @param mixed $response   Data returned from the server, in array form
+     * @param mixed $response Data returned from the server, in array form
      * @access public
      * @throws AWeberOAuthException
      * @return void
      */
-    public function parseAsError($response) {
+    public function parseAsError($response)
+    {
         if (!empty($response['error'])) {
             throw new AWeberOAuthException($response['error']['type'],
                 $response['error']['message']);
@@ -175,12 +195,14 @@ class OAuthApplication implements AWeberOAuthAdapter {
      * Enforce that all the fields in requiredFields are present and not
      * empty in data.  If a required field is empty, throw an exception.
      *
-     * @param mixed $data               Array of data
-     * @param mixed $requiredFields     Array of required field names.
-     * @access protected
+     * @param mixed $data Array of data
+     * @param mixed $requiredFields Array of required field names.
+     * @throws AWeberOAuthDataMissing
      * @return void
+     * @access protected
      */
-    protected function requiredFromResponse($data, $requiredFields) {
+    protected function requiredFromResponse($data, $requiredFields)
+    {
         foreach ($requiredFields as $field) {
             if (empty($data[$field])) {
                 throw new AWeberOAuthDataMissing($field);
@@ -192,12 +214,14 @@ class OAuthApplication implements AWeberOAuthAdapter {
      * get
      *
      * Make a get request.  Used to exchange user tokens with serice provider.
-     * @param mixed $url        URL to make a get request from.
-     * @param array $data       Data for the request.
+     *
+     * @param mixed $url URL to make a get request from.
+     * @param array $data Data for the request.
      * @access protected
-     * @return void
+     * @return mixed
      */
-    protected function get($url, $data) {
+    protected function get($url, $data)
+    {
         $url = $this->_addParametersToUrl($url, $data);
         $handle = $this->curl->init($url);
         $resp = $this->_sendRequest($handle);
@@ -207,20 +231,22 @@ class OAuthApplication implements AWeberOAuthAdapter {
     /**
      * _addParametersToUrl
      *
-     * Adds the parameters in associative array $data to the 
+     * Adds the parameters in associative array $data to the
      * given URL
-     * @param String $url       URL 
-     * @param array $data       Parameters to be added as a query string to
+     *
+     * @param String $url URL
+     * @param array $data Parameters to be added as a query string to
      *      the URL provided
      * @access protected
-     * @return void
+     * @return string
      */
-    protected function _addParametersToUrl($url, $data) {
+    protected function _addParametersToUrl($url, $data)
+    {
         if (!empty($data)) {
             if (strpos($url, '?') === false) {
-                $url .= '?'.$this->buildData($data);
+                $url .= '?' . $this->buildData($data);
             } else {
-                $url .= '&'.$this->buildData($data);
+                $url .= '&' . $this->buildData($data);
             }
         }
         return $url;
@@ -231,24 +257,28 @@ class OAuthApplication implements AWeberOAuthAdapter {
      *
      * Generates a 'nonce', which is a unique request id based on the
      * timestamp.  If no timestamp is provided, generate one.
+     *
      * @param mixed $timestamp Either a timestamp (epoch seconds) or false,
      *  in which case it will generate a timestamp.
      * @access public
      * @return string   Returns a unique nonce
      */
-    public function generateNonce($timestamp = false) {
+    public function generateNonce($timestamp = false)
+    {
         if (!$timestamp) $timestamp = $this->generateTimestamp();
-        return md5($timestamp.'-'.rand(10000,99999).'-'.uniqid());
+        return md5($timestamp . '-' . rand(10000, 99999) . '-' . uniqid());
     }
 
     /**
      * generateTimestamp
      *
      * Generates a timestamp, in seconds
+     *
      * @access public
      * @return int Timestamp, in epoch seconds
      */
-    public function generateTimestamp() {
+    public function generateTimestamp()
+    {
         return time();
     }
 
@@ -256,16 +286,18 @@ class OAuthApplication implements AWeberOAuthAdapter {
      * createSignature
      *
      * Creates a signature on the signature base and the signature key
-     * @param mixed $sigBase    Base string of data to sign
-     * @param mixed $sigKey     Key to sign the data with
+     *
+     * @param mixed $sigBase Base string of data to sign
+     * @param mixed $sigKey Key to sign the data with
      * @access public
      * @return string   The signature
      */
-    public function createSignature($sigBase, $sigKey) {
+    public function createSignature($sigBase, $sigKey)
+    {
         switch ($this->signatureMethod) {
-        case 'HMAC-SHA1':
-        default:
-            return base64_encode(hash_hmac('sha1', $sigBase, $sigKey, true));
+            case 'HMAC-SHA1':
+            default:
+                return base64_encode(hash_hmac('sha1', $sigBase, $sigKey, true));
         }
     }
 
@@ -273,11 +305,13 @@ class OAuthApplication implements AWeberOAuthAdapter {
      * encode
      *
      * Short-cut for utf8_encode / rawurlencode
-     * @param mixed $data   Data to encode
+     *
+     * @param mixed $data Data to encode
      * @access protected
-     * @return void         Encoded data
+     * @return string
      */
-    protected function encode($data) {
+    protected function encode($data)
+    {
         return rawurlencode($data);
     }
 
@@ -288,21 +322,25 @@ class OAuthApplication implements AWeberOAuthAdapter {
      * are signed with the consumerSecret for this consumer application and
      * the token secret of the user that the application is acting on behalf
      * of.
+     *
      * @access public
-     * @return void
+     * @return string
      */
-    public function createSignatureKey() {
-        return $this->consumerSecret.'&'.$this->user->tokenSecret;
+    public function createSignatureKey()
+    {
+        return $this->consumerSecret . '&' . $this->user->tokenSecret;
     }
 
     /**
      * getOAuthRequestData
      *
      * Get all the pre-signature, OAuth specific parameters for a request.
+     *
      * @access public
-     * @return void
+     * @return array
      */
-    public function getOAuthRequestData() {
+    public function getOAuthRequestData()
+    {
         $token = $this->user->getHighestPriorityToken();
         $ts = $this->generateTimestamp();
         $nonce = $this->generateNonce($ts);
@@ -321,9 +359,10 @@ class OAuthApplication implements AWeberOAuthAdapter {
      *
      * @param mixed $requestData
      * @access public
-     * @return void
+     * @return array
      */
-    public function mergeOAuthData($requestData) {
+    public function mergeOAuthData($requestData)
+    {
         $oauthData = $this->getOAuthRequestData();
         return array_merge($requestData, $oauthData);
     }
@@ -331,14 +370,15 @@ class OAuthApplication implements AWeberOAuthAdapter {
     /**
      * createSignatureBase
      *
-     * @param mixed $method     String name of HTTP method, such as "GET"
-     * @param mixed $url        URL where this request will go
-     * @param mixed $data       Array of params for this request. This should
+     * @param mixed $method String name of HTTP method, such as "GET"
+     * @param mixed $url URL where this request will go
+     * @param mixed $data Array of params for this request. This should
      *      include ALL oauth properties except for the signature.
      * @access public
-     * @return void
+     * @return string
      */
-    public function createSignatureBase($method, $url, $data) {
+    public function createSignatureBase($method, $url, $data)
+    {
         $method = $this->encode(strtoupper($method));
         $query = parse_url($url, PHP_URL_QUERY);
         if ($query) {
@@ -353,7 +393,7 @@ class OAuthApplication implements AWeberOAuthAdapter {
         $url = $this->encode($url);
         $data = $this->encode($this->collapseDataForSignature($data));
 
-        return $method.'&'.$url.'&'.$data;
+        return $method . '&' . $url . '&' . $data;
     }
 
     /**
@@ -361,16 +401,18 @@ class OAuthApplication implements AWeberOAuthAdapter {
      *
      * Turns an array of request data into a string, as used by the oauth
      * signature
+     *
      * @param mixed $data
      * @access public
-     * @return void
+     * @return string
      */
-    public function collapseDataForSignature($data) {
+    public function collapseDataForSignature($data)
+    {
         ksort($data);
         $collapse = '';
         foreach ($data as $key => $val) {
             if (!empty($collapse)) $collapse .= '&';
-            $collapse .= $key.'='.$this->encode($val);
+            $collapse .= $key . '=' . $this->encode($val);
         }
         return $collapse;
     }
@@ -380,15 +422,16 @@ class OAuthApplication implements AWeberOAuthAdapter {
      *
      * Signs the request.
      *
-     * @param mixed $method     HTTP method
-     * @param mixed $url        URL for the request
-     * @param mixed $data       The data to be signed
+     * @param mixed $method HTTP method
+     * @param mixed $url URL for the request
+     * @param mixed $data The data to be signed
      * @access public
      * @return array            The data, with the signature.
      */
-    public function signRequest($method, $url, $data) {
+    public function signRequest($method, $url, $data)
+    {
         $base = $this->createSignatureBase($method, $url, $data);
-        $key  = $this->createSignatureKey();
+        $key = $this->createSignatureKey();
         $data['oauth_signature'] = $this->createSignature($base, $key);
         ksort($data);
         return $data;
@@ -399,18 +442,19 @@ class OAuthApplication implements AWeberOAuthAdapter {
      * makeRequest
      *
      * Public facing function to make a request
-     * 
+     *
      * @param mixed $method
-     * @param mixed $url  - Reserved characters in query params MUST be escaped
+     * @param mixed $url - Reserved characters in query params MUST be escaped
      * @param mixed $data - Reserved characters in values MUST NOT be escaped
-
+     * @throws AWeberAPIException
+     * @return CurlResponse
      * @access public
-     * @return void
      */
-    public function makeRequest($method, $url, $data=array()) {
+    public function makeRequest($method, $url, $data = array())
+    {
 
         if ($this->debug) echo "\n** {$method}: $url\n";
-        
+
         switch (strtoupper($method)) {
             case 'POST':
                 $oauth = $this->prepareRequest($method, $url, $data);
@@ -419,7 +463,7 @@ class OAuthApplication implements AWeberOAuthAdapter {
 
             case 'GET':
                 $oauth = $this->prepareRequest($method, $url, $data);
-                $resp = $this->get($url, $oauth, $data);
+                $resp = $this->get($url, $oauth);
                 break;
 
             case 'DELETE':
@@ -429,27 +473,19 @@ class OAuthApplication implements AWeberOAuthAdapter {
 
             case 'PATCH':
                 $oauth = $this->prepareRequest($method, $url, array());
-                $resp  = $this->patch($url, $oauth, $data);
+                $resp = $this->patch($url, $oauth, $data);
                 break;
         }
 
-        // enable debug output
-        if ($this->debug) {
-            echo "<pre>";
-            print_r($oauth);
-            echo " --> Status: {$resp->headers['Status-Code']}\n";
-            echo " --> Body: {$resp->body}";
-            echo "</pre>";
-        }
-
+        /** @var CurlResponse $resp */
         if (!$resp) {
-            $msg  = 'Unable to connect to the AWeber API.  (' . $this->error . ')';
+            $msg = 'Unable to connect to the AWeber API.  (' . $this->error . ')';
             $error = array('message' => $msg, 'type' => 'APIUnreachableError',
-                           'documentation_url' => 'https://labs.aweber.com/docs/troubleshooting');
-            throw new AWeberAPIException($error, $url);
+                'documentation_url' => 'https://labs.aweber.com/docs/troubleshooting');
+            throw new AWeberAPIException($error['message'], $url);
         }
 
-        if($resp->headers['Status-Code'] >= 400) {
+        if ($resp->headers['Status-Code'] >= 400) {
             $data = json_decode($resp->body, true);
             throw new AWeberAPIException($data['error'], $url);
         }
@@ -462,12 +498,14 @@ class OAuthApplication implements AWeberOAuthAdapter {
      *
      * Prepare an OAuth put method.
      *
-     * @param mixed $url    URL where we are making the request to
-     * @param mixed $data   Data that is used to make the request
+     * @param mixed $url URL where we are making the request to
+     * @param $oauth
+     * @param mixed $data Data that is used to make the request
+     * @return mixed
      * @access protected
-     * @return void
      */
-    protected function patch($url, $oauth, $data) {
+    protected function patch($url, $oauth, $data)
+    {
         $url = $this->_addParametersToUrl($url, $oauth);
         $handle = $this->curl->init($url);
         $this->curl->setopt($handle, CURLOPT_CUSTOMREQUEST, 'PATCH');
@@ -481,12 +519,14 @@ class OAuthApplication implements AWeberOAuthAdapter {
      *
      * Prepare an OAuth post method.
      *
-     * @param mixed $url    URL where we are making the request to
-     * @param mixed $data   Data that is used to make the request
+     * @param mixed $url URL where we are making the request to
+     * @param $oauth
+     * @return mixed
+     * @internal param mixed $data Data that is used to make the request
      * @access protected
-     * @return void
      */
-    protected function post($url, $oauth) {
+    protected function post($url, $oauth)
+    {
         $handle = $this->curl->init($url);
         $postData = $this->buildData($oauth);
         $this->curl->setopt($handle, CURLOPT_POST, true);
@@ -499,12 +539,14 @@ class OAuthApplication implements AWeberOAuthAdapter {
      * delete
      *
      * Makes a DELETE request
-     * @param mixed $url        URL where we are making the request to
-     * @param mixed $data       Data that is used in the request
+     *
+     * @param mixed $url URL where we are making the request to
+     * @param mixed $data Data that is used in the request
      * @access protected
-     * @return void
+     * @return mixed
      */
-    protected function delete($url, $data) {
+    protected function delete($url, $data)
+    {
         $url = $this->_addParametersToUrl($url, $data);
         $handle = $this->curl->init($url);
         $this->curl->setopt($handle, CURLOPT_CUSTOMREQUEST, 'DELETE');
@@ -516,15 +558,17 @@ class OAuthApplication implements AWeberOAuthAdapter {
      * buildData
      *
      * Creates a string of data for either post or get requests.
-     * @param mixed $data       Array of key value pairs
+     *
+     * @param mixed $data Array of key value pairs
      * @access public
-     * @return void
+     * @return string
      */
-    public function buildData($data) {
+    public function buildData($data)
+    {
         ksort($data);
         $params = array();
         foreach ($data as $key => $value) {
-            $params[] = $key.'='.$this->encode($value);
+            $params[] = $key . '=' . $this->encode($value);
         }
         return implode('&', $params);
     }
@@ -533,12 +577,14 @@ class OAuthApplication implements AWeberOAuthAdapter {
      * _sendRequest
      *
      * Actually makes a request.
-     * @param mixed $handle     Curl handle
-     * @param array $headers    Additional headers needed for request
+     *
+     * @param mixed $handle Curl handle
+     * @param array $headers Additional headers needed for request
      * @access private
-     * @return void
+     * @return bool|CurlResponse
      */
-    private function _sendRequest($handle, $headers = array('Expect:')) {
+    private function _sendRequest($handle, $headers = array('Expect:'))
+    {
         $this->curl->setopt($handle, CURLOPT_RETURNTRANSFER, true);
         $this->curl->setopt($handle, CURLOPT_HEADER, true);
         $this->curl->setopt($handle, CURLOPT_HTTPHEADER, $headers);
@@ -552,20 +598,21 @@ class OAuthApplication implements AWeberOAuthAdapter {
             return new CurlResponse($resp);
         }
         $this->error = $this->curl->errno($handle) . ' - ' .
-        	$this->curl->error($handle);
+            $this->curl->error($handle);
         return false;
     }
 
     /**
      * prepareRequest
      *
-     * @param mixed $method     HTTP method
-     * @param mixed $url        URL for the request
-     * @param mixed $data       The data to generate oauth data and be signed
+     * @param mixed $method HTTP method
+     * @param mixed $url URL for the request
+     * @param mixed $data The data to generate oauth data and be signed
      * @access public
-     * @return void             The data, with all its OAuth variables and signature
+     * @return mixed             The data, with all its OAuth variables and signature
      */
-    public function prepareRequest($method, $url, $data) {
+    public function prepareRequest($method, $url, $data)
+    {
         $data = $this->mergeOAuthData($data);
         $data = $this->signRequest($method, $url, $data);
         return $data;
@@ -575,23 +622,32 @@ class OAuthApplication implements AWeberOAuthAdapter {
      * parseResponse
      *
      * Parses the body of the response into an array
-     * @param mixed $string     The body of a response
+     *
+     * @param $resp
+     * @return array
+     * @internal param mixed $string The body of a response
      * @access public
-     * @return void
      */
-    public function parseResponse($resp) {
+    public function parseResponse($resp)
+    {
         $data = array();
 
-        if (!$resp) {       return $data; }
-        if (empty($resp)) { return $data; }
-        if (empty($resp->body)) { return $data; }
+        if (!$resp) {
+            return $data;
+        }
+        if (empty($resp)) {
+            return $data;
+        }
+        if (empty($resp->body)) {
+            return $data;
+        }
 
         switch ($this->format) {
-        case 'json':
-            $data = json_decode($resp->body);
-            break;
-        default:
-            parse_str($resp->body, $data);
+            case 'json':
+                $data = json_decode($resp->body);
+                break;
+            default:
+                parse_str($resp->body, $data);
         }
         $this->parseAsError($data);
         return $data;
