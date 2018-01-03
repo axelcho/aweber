@@ -9,5 +9,3 @@ This is a fork/rewrite of aweber/aweber library with the following changes
 Things to do
 
 1. Unit Testing
-
-2. Code cleanup
