@@ -1,6 +1,6 @@
 <?php
+
 namespace AWeber;
-use AWeber\Exceptions;
 
 /**
  * AWeberAPI
@@ -8,16 +8,19 @@ use AWeber\Exceptions;
  * Creates a connection to the AWeberAPI for a given consumer application.
  * This is generally the starting point for this library.  Instances can be
  * created directly with consumerKey and consumerSecret.
+ *
+ * @property $user
  * @uses AWeberAPIBase
  * @package
  * @version $id$
  */
-class AWeberAPI extends AWeberAPIBase {
+class AWeberAPI extends AWeberAPIBase
+{
 
     /**
      * @var String Consumer Key
      */
-    public $consumerKey    = false;
+    public $consumerKey = false;
 
     /**
      * @var String Consumer Secret
@@ -34,8 +37,10 @@ class AWeberAPI extends AWeberAPIBase {
      *
      * @param string
      * Authorization code from authorize app page
+     * @return array|null
      */
-    public static function getDataFromAweberID($string) {
+    public static function getDataFromAweberID($string)
+    {
         list($consumerKey, $consumerSecret, $requestToken, $tokenSecret, $verifier) = AWeberAPI::_parseAweberID($string);
 
         if (!$verifier) {
@@ -49,7 +54,8 @@ class AWeberAPI extends AWeberAPIBase {
         return array($consumerKey, $consumerSecret, $accessToken, $accessSecret);
     }
 
-    protected static function _parseAWeberID($string) {
+    protected static function _parseAWeberID($string)
+    {
         $values = explode('|', $string);
         if (count($values) < 5) {
             return null;
@@ -63,13 +69,13 @@ class AWeberAPI extends AWeberAPIBase {
      * Control Panel OR, in the case of distributed apps, will be returned
      * from the getDataFromAweberID() function
      *
-     * @param string $key     *
-     * @param string $secret     *
-     * @return null
+     * @param string $key *
+     * @param string $secret *
      */
-    public function __construct($key, $secret) {
+    public function __construct($key, $secret)
+    {
         // Load key / secret
-        $this->consumerKey    = $key;
+        $this->consumerKey = $key;
         $this->consumerSecret = $secret;
 
         $this->setAdapter();
@@ -81,7 +87,8 @@ class AWeberAPI extends AWeberAPIBase {
      *
      * @return string The Authorization URL
      */
-    public function getAuthorizeUrl() {
+    public function getAuthorizeUrl()
+    {
         $requestToken = $this->user->requestToken;
         return (empty($requestToken)) ?
             $this->adapter->app->getAuthorizeUrl()
@@ -91,8 +98,11 @@ class AWeberAPI extends AWeberAPIBase {
 
     /**
      * Sets the adapter for use with the API
+     *
+     * @param null $adapter
      */
-    public function setAdapter($adapter=null) {
+    public function setAdapter($adapter = null)
+    {
         if (empty($adapter)) {
             $serviceProvider = new AWeberServiceProvider();
             $adapter = new OAuthApplication($serviceProvider);
@@ -105,14 +115,16 @@ class AWeberAPI extends AWeberAPIBase {
     /**
      * Fetches account data for the associated account
      *
-     * @param String Access Token (Only optional/cached if you called getAccessToken() earlier
+     * @param bool|string $token Access Token (Only optional/cached if you called getAccessToken() earlier
      *      on the same page)
-     * @param String Access Token Secret (Only optional/cached if you called getAccessToken() earlier
-     *      on the same page)
+     * @param bool $secret
      * @return Object AWeberCollection Object with the requested
      *     account data
+     * @internal param Access $string Token Secret (Only optional/cached if you called getAccessToken() earlier
+     *      on the same page)
      */
-    public function getAccount($token=false, $secret=false) {
+    public function getAccount($token = false, $secret = false)
+    {
         if ($token && $secret) {
             $user = new OAuthUser();
             $user->accessToken = $token;
@@ -127,9 +139,12 @@ class AWeberAPI extends AWeberAPIBase {
 
     /**
      * PHP Automagic
+     *
+     * @param $item
      * @return mixed
      */
-    public function __get($item) {
+    public function __get($item)
+    {
         if ($item == 'user') return $this->adapter->user;
         trigger_error("Could not find \"{$item}\"");
         return false;
@@ -138,14 +153,18 @@ class AWeberAPI extends AWeberAPIBase {
     /**
      * Request a request token from AWeber and associate the
      * provided $callbackUrl with the new token
-     * @param String The URL where users should be redirected
+     *
+     * @param String $callbackUrl The URL where users should be redirected
      *     once they authorize your app
-     * @return Array Contains the request token as the first item
+     * @return array Contains the request token as the first item
      *     and the request token secret as the second item of the array
      */
-    public function getRequestToken($callbackUrl) {
+    public function getRequestToken($callbackUrl)
+    {
         $requestToken = $this->adapter->getRequestToken($callbackUrl);
-        return array($requestToken, $this->user->tokenSecret);
+        return [
+            $requestToken, $this->user->tokenSecret
+        ];
     }
 
     /**
@@ -157,10 +176,11 @@ class AWeberAPI extends AWeberAPIBase {
      *    $aweber->user->requestToken = $_GET['oauth_token'];
      *    $aweber->user->verifier     = $_GET['oauth_verifier'];
      *
-     * @return Array Contains the access token as the first item
+     * @return array Contains the access token as the first item
      *     and the access token secret as the second item of the array
      */
-    public function getAccessToken() {
+    public function getAccessToken()
+    {
         return $this->adapter->getAccessToken();
     }
 }

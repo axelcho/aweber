@@ -1,14 +1,15 @@
 <?php
+
 namespace AWeber\Exceptions;
 /**
-* Thrown when the API returns an error. (HTTP status >= 400)
-*
-*
-* @uses AWeberException
-* @package
-* @version $id$
-*/
-class AWeberAPIException extends AWeberException {
+ * Thrown when the API returns an error. (HTTP status >= 400)
+ *
+ * @uses AWeberException
+ * @package
+ * @version $id$
+ */
+class AWeberAPIException extends AWeberException
+{
 
     public $type;
     public $status;

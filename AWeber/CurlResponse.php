@@ -1,4 +1,5 @@
 <?php
+
 namespace AWeber;
 
 class CurlResponse
@@ -18,7 +19,7 @@ class CurlResponse
         preg_match('#HTTP/(\d\.\d)\s(\d\d\d)\s(.*)#', $version_and_status, $matches);
         $this->headers['Http-Version'] = $matches[1];
         $this->headers['Status-Code'] = $matches[2];
-        $this->headers['Status'] = $matches[2].' '.$matches[3];
+        $this->headers['Status'] = $matches[2] . ' ' . $matches[3];
 
         # Convert headers into an associative array
         foreach ($headers as $header) {
@@ -35,7 +36,8 @@ class CurlResponse
         return $this->body;
     }
 
-    public function headers(){
+    public function headers()
+    {
         return $this->headers;
     }
 }

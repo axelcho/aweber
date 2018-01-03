@@ -1,4 +1,5 @@
 <?php
+
 namespace AWeber;
 
 /**
@@ -9,25 +10,31 @@ namespace AWeber;
  * @package
  * @version $id$
  */
-class CurlObject implements CurlInterface {
-	
-    public function errno($ch) {
-        return curl_errno($ch);
-    }	
+class CurlObject implements CurlInterface
+{
 
-    public function error($ch) {
+    public function errno($ch)
+    {
+        return curl_errno($ch);
+    }
+
+    public function error($ch)
+    {
         return curl_error($ch);
-    }	
-	
-    public function execute($ch) {
+    }
+
+    public function execute($ch)
+    {
         return curl_exec($ch);
     }
 
-    public function init($url) {
-        return curl_init($url); 
+    public function init($url)
+    {
+        return curl_init($url);
     }
-    
-    public function setopt ($ch , $option , $value) {
+
+    public function setopt($ch, $option, $value)
+    {
         return curl_setopt($ch, $option, $value);
     }
 

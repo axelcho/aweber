@@ -1,5 +1,6 @@
 <?php
-namespace AWeber; 
+
+namespace AWeber;
 /**
  * OAuthServiceProvider
  *
@@ -21,12 +22,18 @@ namespace AWeber;
  * @package
  * @version $id$
  */
-interface OAuthServiceProvider {
+interface OAuthServiceProvider
+{
 
     public function getAccessTokenUrl();
+
     public function getAuthorizeUrl();
+
     public function getRequestTokenUrl();
+
     public function getAuthTokenFromUrl();
+
     public function getBaseUri();
+
     public function getUserData();
 }

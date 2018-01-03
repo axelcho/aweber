@@ -1,10 +1,13 @@
 <?php
-namespace AWeber; 
 
-interface AWeberOAuthAdapter {
+namespace AWeber;
+
+interface AWeberOAuthAdapter
+{
 
     public function request($method, $uri, $data = array());
-    public function getRequestToken($callbackUrl=false);
+
+    public function getRequestToken($callbackUrl = false);
 
 }
 
